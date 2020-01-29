@@ -33,3 +33,10 @@ boxs = unpack . map cols . pack
 chop :: Int -> [a] -> [[a]]
 chop n [] = []
 chop n xs = take n xs : chop n (drop n xs)
+
+valid :: Grid -> Bool
+valid g = all nodups (rows g) && all nodups (cols g) && all nodups (boxs g)
+
+nodups :: Eq a => [a] -> Bool
+nodups [] = True
+nodups (x:xs) = not (elem x xs) && nodups xs
