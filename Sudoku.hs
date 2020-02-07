@@ -1,15 +1,25 @@
 import Data.List
 
+
+-- Type definitions.
+
 type Grid = Matrix Value
 type Matrix a = [Row a]
 type Row a = [a]
 type Value = Char
+type Choices = [Value]
+
+
+-- Constant declarations.
 
 boxsize :: Int
 boxsize = 3
 
 values :: [Value]
 values = ['1'..'9']
+
+
+-- Helper functions.
 
 empty :: Value -> Bool
 empty = (== '.')
@@ -39,9 +49,10 @@ valid g = all nodups (rows g) && all nodups (cols g) && all nodups (boxs g)
 
 nodups :: Eq a => [a] -> Bool
 nodups [] = True
-nodups (x:xs) = not (elem x xs) && nodups xs
+nodups (x : xs) = not (elem x xs) && nodups xs
 
-type Choices = [Value]
+
+-- A basic solver.
 
 choices :: Grid -> Matrix Choices
 choices = map (map choice)
@@ -49,13 +60,16 @@ choices = map (map choice)
 
 cp :: [[a]] -> [[a]]
 cp [] = [[]]
-cp (xs:xss) = [y : ys | y <- xs, ys <- cp xss]
+cp (xs : xss) = [y : ys | y <- xs, ys <- cp xss]
 
 collapse :: Matrix [a] -> [Matrix a]
 collapse = cp . map cp
 
 basicSolve :: Grid -> [Grid]
 basicSolve = filter valid . collapse . choices
+
+
+-- A pruning solver.
 
 prune :: Matrix Choices -> Matrix Choices
 prune = pruneBy boxs . pruneBy cols . pruneBy rows
@@ -74,6 +88,49 @@ fix f x = if x == x' then x else fix f x'
 
 pruningSolve :: Grid -> [Grid]
 pruningSolve = filter valid . collapse . fix prune . choices
+
+
+-- The final solver.
+
+complete :: Matrix Choices -> Bool
+complete = all (all single)
+
+void :: Matrix Choices -> Bool
+void = any (any null)
+
+consistent :: Row Choices -> Bool
+consistent = nodups . concat . filter single
+
+safe :: Matrix Choices -> Bool
+safe cm = all consistent (rows cm) && all consistent (cols cm) && all consistent (boxs cm)
+
+blocked :: Matrix Choices -> Bool
+blocked m = void m || not (safe m)
+
+expand :: Matrix Choices -> [Matrix Choices]
+expand m = [rows1 ++ [row1 ++ [c] : row2] ++ rows2 | c <- cs]
+           where (rows1, row : rows2) = break (any p) m
+                 (row1, cs : row2) = break p row
+                 p = \xs -> length xs == minimum [length cs | row <- m, cs <- row, length cs > 1]
+           -- where (rows1, row : rows2) = break (any (not . single)) m
+           --       (row1, cs : row2) = break (not . single) row
+
+search :: Matrix Choices -> [Grid]
+search m | blocked m = []
+         | complete m = collapse m
+         | otherwise = [g | m' <- expand m, g <- search (prune m')]
+
+finalSolve :: Grid -> [Grid]
+finalSolve = search . prune . choices
+
+
+-- The main function.
+
+main :: IO ()
+main = putStrLn (unlines (head (finalSolve minimal)))
+
+
+-- Example grids for testing purposes.
 
 easy :: Grid
 easy = ["2....1.38",
