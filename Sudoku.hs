@@ -112,8 +112,6 @@ expand m = [rows1 ++ [row1 ++ [c] : row2] ++ rows2 | c <- cs]
            where (rows1, row : rows2) = break (any p) m
                  (row1, cs : row2) = break p row
                  p = \xs -> length xs == minimum [length cs | row <- m, cs <- row, length cs > 1]
-           -- where (rows1, row : rows2) = break (any (not . single)) m
-           --       (row1, cs : row2) = break (not . single) row
 
 search :: Matrix Choices -> [Grid]
 search m | blocked m = []
